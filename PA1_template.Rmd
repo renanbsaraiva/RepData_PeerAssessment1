@@ -1,25 +1,108 @@
----
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
----
-
+Reproducible Research: Peer Assessment 1
+==========================================================
 
 ## Loading and preprocessing the data
 
+```{r, echo=TRUE}
+activity <- read.csv("activity.csv", colClasses = c("numeric", "character", "numeric"))
+head(activity)
+```
 
+
+Change the variable date (a factor variable) to a 'Date' variable
+```{r, echo=TRUE}
+activity$date <- as.Date(activity$date, "%Y-%m-%d")
+```
 
 ## What is mean total number of steps taken per day?
 
+Create a variable that contain total steps and plot a histogram
+```{r, echo=TRUE}
+TotalSteps <- aggregate(steps ~ date, data = activity, sum, na.rm = TRUE)
+hist(TotalSteps$steps, main = "Total steps by day", xlab = "day", col="blue")
+```
 
+Show mean and median of of total steps taker per day
+```{r, echo=TRUE}
+mean(TotalSteps$steps)
+median(TotalSteps$steps)
+```
 
 ## What is the average daily activity pattern?
 
+Create a variable that takes average steps per day and plot a time series graph
+```{r, echo=TRUE}
+AverageSteps <- tapply(activity$steps, activity$interval, mean, na.rm = TRUE)
 
+plot(row.names(AverageSteps), AverageSteps, type = "l", xlab = "5-min interval", 
+     ylab = "Average across all Days", main = "Average number of steps taken",
+     col = "blue")
+```
+
+Find the maximum steps taken into one day
+```{r, echo=TRUE}
+MaximumSteps <- which.max(AverageSteps)
+names(MaximumSteps)
+```
 
 ## Imputing missing values
 
+Fill the missing values with the mean of steps taken that day
 
+```{r, echo=TRUE}
+MissingValues <- sum(is.na(activity))
+MissingValues
+
+FillMissingValues <- aggregate(steps ~ interval, data = activity, FUN = mean)
+fillNA <- numeric()
+for (i in 1:nrow(activity)) {
+  obs <- activity[i, ]
+  if (is.na(obs$steps)) {
+    steps <- subset(FillMissingValues, interval == obs$interval)$steps
+  } else {
+    steps <- obs$steps
+  }
+  fillNA <- c(fillNA, steps)
+}
+
+DatanoMissings <- activity
+DatanoMissings$steps <- fillNA
+```
+
+Plot a histogram of the total number of steps taken each day and report the mean and median total number of steps taken per day
+
+```{r, echo=TRUE}
+TotalSteps2 <- aggregate(steps ~ date, data = DatanoMissings, sum, na.rm = TRUE)
+hist(TotalSteps2$steps, main = "Total steps by day", xlab = "day", col = "blue")
+
+mean(TotalSteps2$steps)
+median(TotalSteps2$steps)
+``` 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+Add new variables to the dataset 'activity', indicating the day of that measure and if it was a weekday or a weekend
+
+```{r, echo=TRUE}
+activity$Day <- weekdays(activity$date)
+activity$DayType <- c("weekday")
+
+for (i in 1:nrow(activity)){
+  if (activity$Day[i] == "sábado" || activity$Day[i] == "domingo"){
+    activity$DayType[i] <- "weekend"
+  }
+}
+
+activity$DayType <- as.factor(activity$DayType)
+```
+
+Plot the average of steps taken in weekdays and weekends
+
+```{r, echo=TRUE}
+IntervalSteps <- aggregate(steps ~ interval+DayType, activity, mean)
+
+library(ggplot2)
+
+qplot(interval, steps, data=IntervalSteps, geom=c("line"), xlab="Interval", 
+      ylab="Number of steps", main="") + facet_wrap(~ DayType, ncol=1)
+```
